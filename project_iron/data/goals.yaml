@@ -1,0 +1,39 @@
+goals:
+  - id: "strength"
+    name: "Regain Strength & Eliminate Pain"
+    description: "Focus on compound lifts and ACL rehabilitation exercises to build baseline strength."
+    target: "Consistent 3x/week gym sessions"
+    status: "active"
+    metrics:
+      - name: "Squat"
+        unit: "kg"
+        current: 0
+        target: 80
+      - name: "Deadlift"
+        unit: "kg"
+        current: 0
+        target: 100
+
+  - id: "cessation"
+    name: "Quit Smoking"
+    description: "Eliminate chain smoking habit."
+    target: "0 cigarettes/day"
+    status: "active"
+    metrics:
+      - name: "Cigarettes"
+        unit: "count"
+        current: 20
+        target: 0
+
+  - id: "running"
+    name: "Build Stamina"
+    description: "Couch to 5k/10k progression while monitoring knee health."
+    target: "Run 5km continuously"
+    status: "active"
+    metrics:
+      - name: "Distance"
+        unit: "km"
+        current: 0
+        target: 5
+
+

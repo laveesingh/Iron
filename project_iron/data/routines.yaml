@@ -1,0 +1,27 @@
+routines:
+  daily:
+    - id: "morning_water"
+      name: "Drink 500ml Water"
+      time: "Morning"
+    - id: "mobility"
+      name: "10min Mobility/Stretch"
+      time: "Morning"
+    - id: "deep_work"
+      name: "Deep Work Session (2h)"
+      time: "Day"
+    - id: "no_smoke"
+      name: "Smoke Free Day"
+      time: "All Day"
+
+  weekly:
+    - id: "gym_session"
+      name: "Gym Workout"
+      frequency: 3
+    - id: "run_session"
+      name: "Run/Jog"
+      frequency: 2
+    - id: "review"
+      name: "Weekly Review"
+      frequency: 1
+
+
