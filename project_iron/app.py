@@ -19,22 +19,44 @@ tab1, tab2, tab3 = st.tabs(["Dashboard", "Daily Tracker", "Research & Plans"])
 with tab1:
     st.header("Active Goals")
     goals = dm.load_goals()
+
+    active_goals = [g for g in goals if g.get("status", "active") == "active"]
     
-    cols = st.columns(len(goals))
-    for i, goal in enumerate(goals):
+    if not active_goals:
+        st.info("No active goals found in `data/goals.yaml`.")
+        active_goals = []
+
+    cols = st.columns(max(1, len(active_goals)))
+    for i, goal in enumerate(active_goals):
         with cols[i]:
             st.subheader(goal['name'])
             st.write(f"**Target:** {goal['target']}")
             st.caption(goal['description'])
             
             for metric in goal.get('metrics', []):
-                st.metric(label=metric['name'], value=f"{metric['current']} {metric['unit']}", delta=f"Target: {metric['target']}")
+                current = dm.resolve_metric_current(metric)
+                unit = metric.get('unit', '')
+                target = metric.get('target', '')
+                st.metric(label=metric['name'], value=f"{current:.0f} {unit}".strip(), delta=f"Target: {target} {unit}".strip())
+
+                if metric.get("editable"):
+                    key = f"metric_{goal.get('id')}_{metric.get('name')}"
+                    new_val = st.number_input(
+                        f"Update {metric['name']}",
+                        value=float(metric.get('current', 0) or 0),
+                        step=1.0,
+                        key=key,
+                    )
+                    if st.button("Save", key=f"save_{key}"):
+                        dm.update_goal_metric_current(goal.get('id'), metric.get('name'), new_val)
+                        st.success("Saved.")
+                        st.rerun()
 
     st.divider()
     st.header("Recent Activity")
     logs = dm.get_logs()
     if not logs.empty:
-        st.dataframe(logs.tail(10), use_container_width=True)
+        st.dataframe(logs.tail(10), width="stretch")
     else:
         st.info("No activity logged yet.")
 
@@ -46,6 +68,7 @@ with tab2:
     
     routines = dm.load_routines()
     daily_routines = routines.get('daily', [])
+    weekly_routines = routines.get('weekly', [])
     
     # Get existing status for this date
     existing_status = dm.get_daily_status(date_str)
@@ -55,22 +78,58 @@ with tab2:
         
         form_data = {}
         for habit in daily_routines:
-            # Checkbox for binary completion
-            # In a real app we might want different input types based on habit type
-            # keeping it simple: Checkbox = Done
-            is_checked = st.checkbox(habit['name'], value=bool(existing_status.get(habit['id'])))
-            form_data[habit['id']] = is_checked
+            habit_type = habit.get("type", "bool")
+            habit_id = habit["id"]
+            label = habit["name"]
+            if habit_type == "number":
+                cur = existing_status.get(habit_id)
+                try:
+                    cur_val = float(cur) if cur is not None else 0.0
+                except Exception:
+                    cur_val = 0.0
+                unit = habit.get("unit", "")
+                target = habit.get("target")
+                help_text = None
+                if target is not None:
+                    help_text = f"Target: {target} {unit}".strip()
+                val = st.number_input(f"{label} ({unit})".strip(), value=cur_val, step=1.0, help=help_text)
+                form_data[habit_id] = val
+            else:
+                is_checked = st.checkbox(label, value=bool(existing_status.get(habit_id)))
+                form_data[habit_id] = int(is_checked)
             
         submitted = st.form_submit_button("Log Day")
         
         if submitted:
             for habit_id, value in form_data.items():
-                # Only log if true (or handle false if we want explicit 'missed')
-                # For now, let's log everything so we overwrite previous entries if needed
-                # Ideally, data_manager should handle upsert. For append-only, we just append.
-                dm.log_entry(date_str, habit_id, int(value))
+                dm.log_entry(date_str, habit_id, value)
             st.success(f"Logged for {date_str}")
             st.rerun()
+
+    st.divider()
+    st.subheader("Weekly Activities (log each session)")
+    st.caption("Tip: Use this to log strength sessions, Zone 2 minutes, and run/walk minutes. The dashboard goals will auto-update.")
+
+    if weekly_routines:
+        with st.form("weekly_activity_form"):
+            options = {w["name"]: w for w in weekly_routines}
+            selected_name = st.selectbox("Activity", list(options.keys()))
+            selected = options[selected_name]
+            wtype = selected.get("type", "count")
+
+            if wtype == "minutes":
+                val = st.number_input("Minutes", min_value=0.0, value=30.0, step=5.0)
+            else:
+                val = st.number_input("Count", min_value=0.0, value=1.0, step=1.0)
+
+            notes = st.text_input("Notes (optional)", value="")
+            add = st.form_submit_button("Log Activity")
+            if add:
+                dm.log_entry(date_str, selected["id"], val, notes=notes)
+                st.success("Activity logged.")
+                st.rerun()
+    else:
+        st.info("No weekly routines found in `data/routines.yaml`.")
 
 # --- RESEARCH ---
 with tab3:
@@ -78,7 +137,13 @@ with tab3:
     
     research_dir = os.path.join(os.path.dirname(__file__), 'research')
     if os.path.exists(research_dir):
-        files = [f for f in os.listdir(research_dir) if f.endswith('.md')]
+        files = []
+        for root, _, filenames in os.walk(research_dir):
+            for fn in filenames:
+                if fn.endswith(".md"):
+                    rel = os.path.relpath(os.path.join(root, fn), research_dir)
+                    files.append(rel)
+        files = sorted(files)
         if files:
             selected_file = st.selectbox("Select Plan", files)
             with open(os.path.join(research_dir, selected_file), 'r') as f:

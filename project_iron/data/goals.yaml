@@ -1,39 +1,79 @@
 goals:
-  - id: "strength"
-    name: "Regain Strength & Eliminate Pain"
-    description: "Focus on compound lifts and ACL rehabilitation exercises to build baseline strength."
-    target: "Consistent 3x/week gym sessions"
-    status: "active"
-    metrics:
-      - name: "Squat"
-        unit: "kg"
-        current: 0
-        target: 80
-      - name: "Deadlift"
-        unit: "kg"
-        current: 0
-        target: 100
-
-  - id: "cessation"
-    name: "Quit Smoking"
-    description: "Eliminate chain smoking habit."
-    target: "0 cigarettes/day"
-    status: "active"
-    metrics:
-      - name: "Cigarettes"
-        unit: "count"
-        current: 20
-        target: 0
-
-  - id: "running"
-    name: "Build Stamina"
-    description: "Couch to 5k/10k progression while monitoring knee health."
-    target: "Run 5km continuously"
-    status: "active"
-    metrics:
-      - name: "Distance"
-        unit: "km"
-        current: 0
-        target: 5
-
-
+- id: fitness_v1
+  name: "Fitness Plan v1 \u2014 Build Base (Low DOMS, Low Injury)"
+  description: 'Build a sustainable base: strength 3x/week, Zone 2 cardio, and ACL-safe
+    return to running with knee durability.'
+  target: 8-week adherence with knee pain <= 3/10 and steady progression
+  status: active
+  metrics:
+  - name: Strength sessions (this week)
+    unit: sessions
+    target: 3
+    source:
+      type: weekly_sum
+      habit_id: strength_session
+  - name: Zone 2 minutes (this week)
+    unit: min
+    target: 90
+    source:
+      type: weekly_sum
+      habit_id: zone2_cardio
+  - name: Run/Walk minutes (this week)
+    unit: min
+    target: 25
+    source:
+      type: weekly_sum
+      habit_id: run_walk
+  - name: Steps (7d avg)
+    unit: steps
+    target: 8000
+    source:
+      type: rolling_avg_days
+      habit_id: steps
+      days: 7
+  - name: Protein (7d avg)
+    unit: g
+    target: 120
+    source:
+      type: rolling_avg_days
+      habit_id: protein_g
+      days: 7
+  - name: Knee pain (7d avg)
+    unit: /10
+    target: 3
+    source:
+      type: rolling_avg_days
+      habit_id: knee_pain
+      days: 7
+- id: cessation
+  name: Quit Smoking
+  description: Eliminate chain smoking habit.
+  target: 0 cigarettes/day
+  status: active
+  metrics:
+  - name: Cigarettes
+    unit: count
+    current: 20
+    target: 0
+- id: strength_numbers
+  name: Strength Numbers (Optional)
+  description: Track your main lift numbers as you rebuild. Update in-app when you
+    test.
+  target: Rebuild technical strength without knee flare-ups
+  status: active
+  metrics:
+  - name: Squat (working weight)
+    unit: kg
+    current: 0.0
+    target: 80
+    editable: true
+  - name: Deadlift (working weight)
+    unit: kg
+    current: 0
+    target: 100
+    editable: true
+  - name: Bench Press (working weight)
+    unit: kg
+    current: 0
+    target: 70
+    editable: true

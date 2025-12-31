@@ -6,20 +6,59 @@ routines:
     - id: "mobility"
       name: "10min Mobility/Stretch"
       time: "Morning"
+      type: "bool"
+    - id: "knee_prehab"
+      name: "Knee Prehab (10-12 min)"
+      time: "Anytime"
+      type: "bool"
+      notes: "TKE + split squat iso + calf/soleus + tibialis"
     - id: "deep_work"
       name: "Deep Work Session (2h)"
       time: "Day"
     - id: "no_smoke"
       name: "Smoke Free Day"
       time: "All Day"
+      type: "bool"
+    - id: "steps"
+      name: "Steps"
+      time: "All Day"
+      type: "number"
+      unit: "steps"
+      target: 8000
+    - id: "protein_g"
+      name: "Protein (grams)"
+      time: "All Day"
+      type: "number"
+      unit: "g"
+      target: 120
+    - id: "sleep_hours"
+      name: "Sleep (hours)"
+      time: "Night"
+      type: "number"
+      unit: "h"
+      target: 7
+    - id: "knee_pain"
+      name: "Knee Pain (0-10)"
+      time: "End of Day"
+      type: "number"
+      unit: "/10"
+      target: 3
 
   weekly:
-    - id: "gym_session"
-      name: "Gym Workout"
+    - id: "strength_session"
+      name: "Strength Session (Plan v1)"
       frequency: 3
-    - id: "run_session"
-      name: "Run/Jog"
+      type: "count"
+    - id: "zone2_cardio"
+      name: "Zone 2 Cardio"
       frequency: 2
+      type: "minutes"
+      target_per_week: 90
+    - id: "run_walk"
+      name: "Run/Walk (ACL-safe)"
+      frequency: 1
+      type: "minutes"
+      target_per_week: 25
     - id: "review"
       name: "Weekly Review"
       frequency: 1
