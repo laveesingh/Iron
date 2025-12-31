@@ -1,0 +1,170 @@
+id: "fitness_plan_v1"
+name: "Fitness Plan v1 — Build Base"
+version: "v1"
+start_date: "2025-12-31"
+doc_md: "fitness/09_fitness_plan_v1.md"
+
+targets:
+  strength_sessions_per_week: 3
+  zone2_minutes_per_week: 90
+  run_walk_minutes_per_week: 25
+  steps_daily_target: 8000
+  protein_g_daily_target: 120
+  sleep_hours_daily_target: 7
+  knee_pain_target: 3
+
+templates:
+  strength_A:
+    title: "Strength A (Full Body, knee-friendly)"
+    type: "strength"
+    log:
+      habit_id: "strength_session"
+      unit: "count"
+      default_value: 1
+      default_notes: "Plan v1: Strength A"
+    steps:
+      - "Warm-up: 5 min easy cardio + 5 min mobility + ramp sets"
+      - "Main lifts: Box/Goblet Squat, DB Bench, RDL, Row, Calves, Plank"
+      - "Effort: RIR 3–4 (Weeks 1–2) then RIR 2–3"
+    workout:
+      blocks:
+        - name: "Main"
+          exercises:
+            - name: "Box Squat or Goblet Squat"
+              sets: 3
+              reps: "6-8"
+              notes: "Knee-friendly depth"
+            - name: "Dumbbell Bench Press"
+              sets: 3
+              reps: "8-10"
+            - name: "Romanian Deadlift"
+              sets: 3
+              reps: "8-10"
+            - name: "Cable Row / Dumbbell Row"
+              sets: 3
+              reps: "10-12"
+            - name: "Seated Calf Raise"
+              sets: 3
+              reps: "10-15"
+            - name: "Plank"
+              sets: 3
+              reps: "45-60s"
+
+  strength_B:
+    title: "Strength B (Full Body)"
+    type: "strength"
+    log:
+      habit_id: "strength_session"
+      unit: "count"
+      default_value: 1
+      default_notes: "Plan v1: Strength B"
+    steps:
+      - "Warm-up: 5 min easy cardio + 5 min mobility + ramp sets"
+      - "Main lifts: Leg Press, OHP, Ham Curl, Lat Pulldown, Lateral Raises, Pallof"
+      - "Effort: RIR 3–4 (Weeks 1–2) then RIR 2–3"
+    workout:
+      blocks:
+        - name: "Main"
+          exercises:
+            - name: "Leg Press"
+              sets: 3
+              reps: "10-12"
+              notes: "Controlled"
+            - name: "Overhead Press (standing or seated)"
+              sets: 3
+              reps: "8-10"
+            - name: "Hamstring Curl (seated if possible)"
+              sets: 3
+              reps: "10-12"
+            - name: "Lat Pulldown / Assisted Pull-ups"
+              sets: 3
+              reps: "8-12"
+            - name: "Lateral Raises"
+              sets: 3
+              reps: "12-20"
+            - name: "Pallof Press"
+              sets: 3
+              reps: "10/side"
+
+  zone2:
+    title: "Zone 2 + Knee Prehab"
+    type: "zone2"
+    log:
+      habit_id: "zone2_cardio"
+      unit: "minutes"
+      default_value: 30
+      default_notes: "Plan v1: Zone 2"
+    steps:
+      - "Zone 2: bike or incline walk 25–35 min (conversational pace)"
+      - "Knee prehab 10–12 min (TKE, split squat iso, tibialis, soleus)"
+
+  run_walk:
+    title: "Run/Walk (ACL-safe, easy)"
+    type: "run_walk"
+    log:
+      habit_id: "run_walk"
+      unit: "minutes"
+      default_value: 22
+      default_notes: "Plan v1: Run/Walk"
+    steps:
+      - "Pain rule: 0–3/10 ok; 4–5/10 reduce; 6+/10 stop/regress"
+    progression:
+      by_week:
+        "1-2":
+          prescription: "Run/Walk 20–25 min: 1 min jog / 2 min walk × 7–8 (very easy)"
+          default_minutes: 22
+        "3-4":
+          prescription: "Run/Walk 25–30 min: 2 min jog / 2 min walk × 6–7 (very easy)"
+          default_minutes: 27
+
+  rest:
+    title: "Rest / Walk + Mobility"
+    type: "rest"
+    steps:
+      - "Optional: 20–45 min easy walk"
+      - "Mobility: 10 min"
+      - "Keep knee pain <= 3/10"
+
+  review:
+    title: "Rest + Weekly Review"
+    type: "review"
+    log:
+      habit_id: "review"
+      unit: "count"
+      default_value: 1
+      default_notes: "Weekly review"
+    steps:
+      - "Review: Did you hit 3 strength sessions + Zone 2 minutes?"
+      - "Adjust next week based on knee pain trend and recovery."
+
+schedule:
+  days:
+    "0": { primary: "strength_A" }
+    "1": { primary: "zone2" }
+    "2": { primary: "strength_B" }
+    "3": { primary: "rest" }
+    "4": { primary: "strength_A", alternatives: ["zone2"] }
+    "5": { primary: "run_walk" }
+    "6": { primary: "review" }
+
+adaptive_rules:
+  - id: "knee_pain_swap_run_to_zone2"
+    when:
+      metric: "knee_pain_7d_avg"
+      op: ">"
+      value: 3
+    then:
+      swap_template:
+        from: "run_walk"
+        to: "zone2"
+      add_note: "Knee pain trend is high. Swapping run/walk to Zone 2 today."
+
+  - id: "low_sleep_warning"
+    when:
+      metric: "sleep_3d_avg"
+      op: "<"
+      value: 6
+    then:
+      add_note: "Sleep has been low (3-day avg). Consider reducing load/volume and prioritizing recovery."
+
+

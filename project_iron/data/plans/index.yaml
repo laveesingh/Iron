@@ -1,0 +1,6 @@
+active_plan_id: "fitness_plan_v1"
+plans:
+  - id: "fitness_plan_v1"
+    name: "Fitness Plan v1 — Build Base"
+    file: "fitness_plan_v1.yaml"
+

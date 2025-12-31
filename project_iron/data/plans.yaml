@@ -1,0 +1,8 @@
+plans:
+  active_plan_id: "fitness_plan_v1"
+  plans:
+    - id: "fitness_plan_v1"
+      name: "Fitness Plan v1 — Build Base"
+      research_md: "fitness/09_fitness_plan_v1.md"
+      start_date: "2025-12-31"
+

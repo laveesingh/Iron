@@ -13,7 +13,7 @@ st.set_page_config(page_title="Project Iron", page_icon="💪", layout="wide")
 st.title("Project Iron 💪")
 
 # Tabs
-tab1, tab2, tab3 = st.tabs(["Dashboard", "Daily Tracker", "Research & Plans"])
+tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Fitness Plan", "Daily Tracker", "Research & Plans"])
 
 # --- DASHBOARD ---
 with tab1:
@@ -61,7 +61,7 @@ with tab1:
         st.info("No activity logged yet.")
 
 # --- TRACKER ---
-with tab2:
+with tab3:
     st.header("Daily Tracker")
     selected_date = st.date_input("Date", date.today())
     date_str = selected_date.strftime("%Y-%m-%d")
@@ -131,8 +131,221 @@ with tab2:
     else:
         st.info("No weekly routines found in `data/routines.yaml`.")
 
+# --- FITNESS PLAN ---
+with tab2:
+    st.header("Fitness Plan")
+
+    plans_obj = dm.load_plans()
+    plan = dm.get_active_plan()
+    if not plan:
+        st.warning("No active plan configured in `data/plans/index.yaml` (or legacy `data/plans.yaml`).")
+    else:
+        st.subheader(plan.get("name", plan.get("id", "Active Plan")))
+
+        # --- Plan Editor (Full) ---
+        st.caption("Plan Editor (v1): edit schedule, workouts, and rules. Every save creates an archive copy.")
+        editor_tab, preview_tab = st.tabs(["Edit Plan", "Preview / Validate"])
+
+        with preview_tab:
+            errs = dm.validate_active_plan()
+            if errs:
+                st.error("Plan validation failed:")
+                for e in errs:
+                    st.write(f"- {e}")
+            else:
+                st.success("Plan validation OK.")
+
+        with editor_tab:
+            # Minimal-maintenance approach: basic structured editors + optional raw YAML editor
+            st.subheader("Schedule")
+            schedule = (plan.get("schedule") or {}).get("days") or {}
+            templates = plan.get("templates") or {}
+            template_ids = list(templates.keys())
+
+            # Day mapping: Mon=0..Sun=6
+            day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            new_schedule = {}
+            cols = st.columns(7)
+            for i in range(7):
+                key = str(i)
+                cfg = schedule.get(key) or {}
+                primary = cfg.get("primary")
+                with cols[i]:
+                    st.caption(day_names[i])
+                    choice = st.selectbox(
+                        "Primary",
+                        options=template_ids,
+                        index=template_ids.index(primary) if primary in template_ids else 0,
+                        key=f"schedule_primary_{i}",
+                    )
+                    new_schedule[key] = {"primary": choice}
+
+            st.subheader("Targets")
+            targets = plan.get("targets") or {}
+            strength_target = st.number_input(
+                "Strength sessions per week",
+                min_value=0,
+                value=int(targets.get("strength_sessions_per_week", 3)),
+                step=1,
+            )
+            zone2_target = st.number_input(
+                "Zone 2 minutes per week",
+                min_value=0,
+                value=int(targets.get("zone2_minutes_per_week", 90)),
+                step=5,
+            )
+            runwalk_target = st.number_input(
+                "Run/Walk minutes per week",
+                min_value=0,
+                value=int(targets.get("run_walk_minutes_per_week", 25)),
+                step=5,
+            )
+
+            st.subheader("Adaptive Rules")
+            # simple knobs (full editor iteration 1)
+            knee_thr = st.number_input("Knee pain 7d avg threshold", min_value=0.0, max_value=10.0, value=3.0, step=0.5)
+            sleep_thr = st.number_input("Sleep 3d avg threshold", min_value=0.0, max_value=12.0, value=6.0, step=0.5)
+
+            if st.button("Save Plan Changes"):
+                # Save back to plan spec file via data_manager
+                plans_index = dm.load_plans()
+                active_id = plans_index.get("active_plan_id")
+                plan_file = None
+                for p in plans_index.get("plans", []):
+                    if p.get("id") == active_id:
+                        plan_file = p.get("file")
+                        break
+                if not plan_file:
+                    st.error("Active plan file not found in index.")
+                else:
+                    spec = dm.load_plan_spec(plan_file) or {}
+                    spec.setdefault("targets", {})
+                    spec.setdefault("schedule", {})
+                    spec["schedule"]["days"] = new_schedule
+                    spec["targets"]["strength_sessions_per_week"] = int(strength_target)
+                    spec["targets"]["zone2_minutes_per_week"] = int(zone2_target)
+                    spec["targets"]["run_walk_minutes_per_week"] = int(runwalk_target)
+
+                    # update thresholds in known rules if present
+                    rules = spec.get("adaptive_rules") or []
+                    for r in rules:
+                        if r.get("id") == "knee_pain_swap_run_to_zone2":
+                            r.setdefault("when", {})
+                            r["when"]["value"] = float(knee_thr)
+                        if r.get("id") == "low_sleep_warning":
+                            r.setdefault("when", {})
+                            r["when"]["value"] = float(sleep_thr)
+                    spec["adaptive_rules"] = rules
+
+                    dm.save_plan_spec(plan_file, spec, archive=True)
+                    st.success("Plan saved (archived previous version).")
+                    st.rerun()
+
+        # Start date (drives week number)
+        try:
+            start_date = pd.to_datetime(plan.get("start_date")).date()
+        except Exception:
+            start_date = date.today()
+
+        colA, colB = st.columns([1, 1])
+        with colA:
+            new_start = st.date_input("Plan start date", start_date, key="plan_start_date")
+        with colB:
+            week_num = dm.get_plan_week_number(plan, today=date.today())
+            st.metric("Current plan week", week_num)
+
+        if new_start != start_date:
+            if st.button("Save start date"):
+                dm.set_active_plan_start_date(plan.get("id"), new_start.strftime("%Y-%m-%d"))
+                st.success("Saved.")
+                st.rerun()
+
+        st.divider()
+
+        # Show today's recommendation and provide one-click logging (PlanSpec-driven)
+        rec = dm.plan_today_recommendation(date.today())
+        st.subheader(rec["title"])
+        for a in rec.get("actions", []):
+            st.write(f"- {a}")
+
+        for n in rec.get("notes", []):
+            if (n or {}).get("level") == "warn":
+                st.warning((n or {}).get("text"))
+            else:
+                st.info((n or {}).get("text"))
+
+        log = rec.get("log")
+        if log:
+            st.caption("Log this session to count toward goals (you can edit minutes/notes).")
+            minutes_default = float(log.get("default_value", 1.0))
+            notes_default = str(log.get("notes", ""))
+
+            if log["habit_id"] in ("zone2_cardio", "run_walk"):
+                val = st.number_input("Minutes", min_value=0.0, value=minutes_default, step=5.0)
+            else:
+                val = st.number_input("Count", min_value=0.0, value=minutes_default, step=1.0)
+            notes = st.text_input("Notes", value=notes_default)
+            if st.button("Log today's recommended session"):
+                dm.log_entry(date.today().strftime("%Y-%m-%d"), log["habit_id"], val, notes=notes)
+                st.success("Logged.")
+                st.rerun()
+
+        st.divider()
+        st.subheader("This Week (Plan View)")
+        week = dm.plan_week_view(date.today())
+        ws = week.get("week_start")
+        wn = week.get("week_num")
+        if ws:
+            st.caption(f"Week {wn} (Mon–Sun) starting {ws.isoformat()}")
+
+        days = week.get("days", [])
+        if days:
+            # quick, readable week view
+            day_cols = st.columns(7)
+            for i, day in enumerate(days):
+                d = day.get("date")
+                rec_day = (day.get("rec") or {})
+                with day_cols[i]:
+                    if d:
+                        st.write(d.strftime("%a"))
+                        st.caption(d.strftime("%m/%d"))
+                    title = rec_day.get("title", "—")
+                    st.write(title)
+
+                    # completion indicator: logged if habit_id exists for that date
+                    log_cfg = rec_day.get("log") or {}
+                    habit_id = log_cfg.get("habit_id")
+                    if d and habit_id:
+                        status = dm.get_daily_status(d.strftime("%Y-%m-%d"))
+                        done = habit_id in status
+                        st.write("✅ Logged" if done else "⬜ Not logged")
+                        if not done:
+                            if st.button("Log", key=f"log_{d}_{habit_id}"):
+                                default_val = float(log_cfg.get("default_value", 1))
+                                notes = str(log_cfg.get("default_notes", ""))
+                                dm.log_entry(d.strftime("%Y-%m-%d"), habit_id, default_val, notes=notes)
+                                st.success("Logged")
+                                st.rerun()
+                    else:
+                        st.write("—")
+        else:
+            st.info("No schedule days found in the active plan.")
+
+        st.divider()
+        st.subheader("Plan Document")
+
+        research_dir = os.path.join(os.path.dirname(__file__), 'research')
+        md_rel = plan.get("research_md")
+        if md_rel:
+            md_path = os.path.join(research_dir, md_rel)
+            if os.path.exists(md_path):
+                with open(md_path, "r") as f:
+                    st.markdown(f.read())
+            else:
+                st.info(f"Plan markdown not found at `{md_rel}`.")
+
 # --- RESEARCH ---
-with tab3:
+with tab4:
     st.header("Research & Plans")
     
     research_dir = os.path.join(os.path.dirname(__file__), 'research')
